@@ -66,10 +66,12 @@ export default function Bookmarks() {
     await fetchBookmarks(user.id)
   }
 
-  // PHASE 13: Supabase Realtime Subscription
+  // PHASE 13: Supabase Realtime Subscription with Polling Fallback
   useEffect(() => {
     let channel: any = null
     let isMounted = true
+    let pollInterval: NodeJS.Timeout | null = null
+    let currentUserId: string | null = null
 
     const checkAuth = async () => {
       const {
@@ -83,6 +85,7 @@ export default function Bookmarks() {
 
       if (!isMounted) return
 
+      currentUserId = session.user.id
       setUser(session.user)
       await fetchBookmarks(session.user.id)
 
@@ -99,8 +102,8 @@ export default function Bookmarks() {
           },
           async (payload) => {
             console.log('New bookmark inserted:', payload)
-            if (isMounted) {
-              await fetchBookmarks(session.user.id)
+            if (isMounted && currentUserId) {
+              await fetchBookmarks(currentUserId)
             }
           }
         )
@@ -114,8 +117,8 @@ export default function Bookmarks() {
           },
           async (payload) => {
             console.log('Bookmark updated:', payload)
-            if (isMounted) {
-              await fetchBookmarks(session.user.id)
+            if (isMounted && currentUserId) {
+              await fetchBookmarks(currentUserId)
             }
           }
         )
@@ -129,14 +132,22 @@ export default function Bookmarks() {
           },
           async (payload) => {
             console.log('Bookmark deleted:', payload)
-            if (isMounted) {
-              await fetchBookmarks(session.user.id)
+            if (isMounted && currentUserId) {
+              await fetchBookmarks(currentUserId)
             }
           }
         )
         .subscribe((status) => {
           console.log('Subscription status:', status)
         })
+
+      // Polling fallback: refetch every 2 seconds to catch updates from other tabs
+      // This ensures real-time feel even if Realtime subscription isn't working
+      pollInterval = setInterval(async () => {
+        if (isMounted && currentUserId) {
+          await fetchBookmarks(currentUserId)
+        }
+      }, 2000)
 
       if (isMounted) {
         setLoading(false)
@@ -145,11 +156,14 @@ export default function Bookmarks() {
 
     checkAuth()
 
-    // Cleanup subscription on unmount
+    // Cleanup subscription and polling on unmount
     return () => {
       isMounted = false
       if (channel) {
         supabase.removeChannel(channel)
+      }
+      if (pollInterval) {
+        clearInterval(pollInterval)
       }
     }
   }, [router])
