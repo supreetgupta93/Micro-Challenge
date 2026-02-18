@@ -61,15 +61,16 @@ CREATE POLICY "users can manage their bookmarks" ON public.bookmarks
 
 2. **Realtime updates not reflecting in two tabs (MAJOR)**
    - Symptom: Add/delete bookmark in tab 1 → no update in tab 2 without page refresh.
-   - Root cause: Supabase realtime subscription was using wildcard event `'*'` which was unreliable. Subscription callback wasn't being triggered consistently.
+   - Root cause: Supabase realtime subscription using `postgres_changes` events may not work if Realtime isn't enabled on the table or takes time to propagate.
    - Fix applied:
-     - Separated event listeners for `INSERT`, `UPDATE`, and `DELETE` instead of wildcard `'*'`
-     - Added `isMounted` flag to prevent race conditions and state updates after unmount
-     - Added console logging to debug subscription status
-     - Added subscription status callback to monitor connection
-     - Ensured proper cleanup with `supabase.removeChannel(channel)` on unmount
-     - Made channel name unique per user: `bookmarks-${session.user.id}`
-   - Result: Real-time updates now work instantly across two tabs ✅
+     - Implemented Supabase realtime subscription with `INSERT`, `UPDATE`, `DELETE` event listeners
+     - **Added polling fallback**: Refetch bookmarks every 2 seconds to catch updates from other tabs
+     - Combined approach: Realtime events + polling ensures updates appear instantly OR within 2 seconds
+     - Separated event listeners instead of wildcard for better reliability
+     - Added `isMounted` flag and `currentUserId` to prevent race conditions and memory leaks
+     - Proper cleanup of both subscription channel and polling interval on unmount
+   - Result: Real-time updates now work across two tabs reliably ✅
+   - Note: If you enable Realtime on the Supabase table, updates will be instant. Polling is a fallback.
 
 3. Delete operation removing other users' bookmarks
    - Symptom: Delete action removed bookmarks regardless of owner (or appeared to).
