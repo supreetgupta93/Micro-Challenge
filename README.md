@@ -59,21 +59,32 @@ CREATE POLICY "users can manage their bookmarks" ON public.bookmarks
    - Symptom: Error stating Supabase URL missing.
    - Fix: Stop dev server, delete `.next` directory and restart (`npm run dev`). Verified `.env.local` in project root.
 
-2. Realtime updates incorrectly scoped or not updating UI
-   - Fix: Subscribe with `filter: 'user_id=eq.<id>'` and refresh list on events; ensure subscription cleanup in `useEffect`.
+2. **Realtime updates not reflecting in two tabs (MAJOR)**
+   - Symptom: Add/delete bookmark in tab 1 → no update in tab 2 without page refresh.
+   - Root cause: Supabase realtime subscription was using wildcard event `'*'` which was unreliable. Subscription callback wasn't being triggered consistently.
+   - Fix applied:
+     - Separated event listeners for `INSERT`, `UPDATE`, and `DELETE` instead of wildcard `'*'`
+     - Added `isMounted` flag to prevent race conditions and state updates after unmount
+     - Added console logging to debug subscription status
+     - Added subscription status callback to monitor connection
+     - Ensured proper cleanup with `supabase.removeChannel(channel)` on unmount
+     - Made channel name unique per user: `bookmarks-${session.user.id}`
+   - Result: Real-time updates now work instantly across two tabs ✅
 
 3. Delete operation removing other users' bookmarks
-   - Fix: Add `.eq('user_id', session.user.id)` to delete queries and enforce RLS in DB.
+   - Symptom: Delete action removed bookmarks regardless of owner (or appeared to).
+   - Fix: Send `.eq('user_id', session.user.id)` in the delete query to ensure only the owner can delete. Also rely on RLS on the DB for safety.
 
 4. Layout overflow from long URLs
-   - Fix: Use `break-words` / `break-all`, add responsive container, and card styles in `src/app/bookmarks/page.tsx`.
+   - Symptom: Long URLs overflowed the bookmark card, breaking layout.
+   - Fix: Updated CSS in `src/app/bookmarks/page.tsx` cards to use `break-words` / `break-all`, constrained container widths, and added consistent padding and rounded cards.
 
 5. Global text color
-   - Request: All text should be dark black.
+   - Request: Make all text appear dark black.
    - Fix: Set `--foreground: #000000` in `src/app/globals.css`.
 
-6. Security: Supabase keys visible
-   - Action: Added `.gitignore` rules for `.env.local` and common Supabase secret files. If secrets were committed, rotate keys and purge history.
+6. Security: Supabase keys accidentally visible
+   - Action: Added `.gitignore` rules for `.env.local` and common Supabase secret/service_role files. If secrets were committed, rotate keys and purge history.
 
 ## Deployment (Vercel)
 
