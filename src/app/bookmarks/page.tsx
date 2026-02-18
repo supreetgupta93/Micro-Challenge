@@ -69,6 +69,7 @@ export default function Bookmarks() {
   // PHASE 13: Supabase Realtime Subscription
   useEffect(() => {
     let channel: any = null
+    let isMounted = true
 
     const checkAuth = async () => {
       const {
@@ -80,33 +81,73 @@ export default function Bookmarks() {
         return
       }
 
+      if (!isMounted) return
+
       setUser(session.user)
       await fetchBookmarks(session.user.id)
 
       // Realtime subscription - listen to changes on bookmarks table
       channel = supabase
-        .channel('bookmarks-realtime')
+        .channel(`bookmarks-${session.user.id}`)
         .on(
           'postgres_changes',
           {
-            event: '*',
+            event: 'INSERT',
             schema: 'public',
             table: 'bookmarks',
             filter: `user_id=eq.${session.user.id}`
           },
-          () => {
-            fetchBookmarks(session.user.id)
+          async (payload) => {
+            console.log('New bookmark inserted:', payload)
+            if (isMounted) {
+              await fetchBookmarks(session.user.id)
+            }
           }
         )
-        .subscribe()
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'bookmarks',
+            filter: `user_id=eq.${session.user.id}`
+          },
+          async (payload) => {
+            console.log('Bookmark updated:', payload)
+            if (isMounted) {
+              await fetchBookmarks(session.user.id)
+            }
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'DELETE',
+            schema: 'public',
+            table: 'bookmarks',
+            filter: `user_id=eq.${session.user.id}`
+          },
+          async (payload) => {
+            console.log('Bookmark deleted:', payload)
+            if (isMounted) {
+              await fetchBookmarks(session.user.id)
+            }
+          }
+        )
+        .subscribe((status) => {
+          console.log('Subscription status:', status)
+        })
 
-      setLoading(false)
+      if (isMounted) {
+        setLoading(false)
+      }
     }
 
     checkAuth()
 
     // Cleanup subscription on unmount
     return () => {
+      isMounted = false
       if (channel) {
         supabase.removeChannel(channel)
       }
