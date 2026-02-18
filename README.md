@@ -53,6 +53,71 @@ CREATE POLICY "users can manage their bookmarks" ON public.bookmarks
 - Real-time updates via Supabase Realtime (two-tab test)
 - Delete your own bookmarks (delete query includes `user_id` guard)
 
+## Challenges faced during assignment
+
+### 1. **Real-Time Synchronization Across Multiple Tabs (MAJOR)**
+   - Challenge: Making bookmarks appear instantly in one tab when added/deleted in another without page refresh
+   - Complexity: Requires understanding of Supabase Realtime, subscriptions, and event-driven updates
+   - Solution: Implemented dual approach with Supabase realtime `postgres_changes` + polling fallback every 2 seconds
+   - Learning: Understanding WebSocket subscriptions, event lifecycle, cleanup requirements
+
+### 2. **User Data Privacy & Security**
+   - Challenge: Ensuring User A cannot see User B's bookmarks
+   - Complexity: Required Row Level Security (RLS) on Supabase + filtering queries by `user_id`
+   - Solution: Added `user_id` filters on all queries + documented Supabase RLS policies
+   - Learning: Importance of backend security and access control
+
+### 3. **Environment Variables Not Loading**
+   - Challenge: Supabase credentials weren't being picked up by Next.js at runtime
+   - Complexity: Debugging Next.js build caching and environment variable loading
+   - Solution: Delete `.next` folder, verify `.env.local` location, add fallback values
+   - Learning: Frontend framework build processes and environment variable handling
+
+### 4. **OAuth Redirect URL Configuration**
+   - Challenge: Google login was redirecting to localhost instead of live URL
+   - Complexity: Supabase OAuth security requires whitelisting redirect URLs
+   - Solution: Added Vercel URL to Supabase authentication redirect URLs
+   - Learning: OAuth flow security, third-party integration configuration
+
+### 5. **Layout & Text Overflow Issues**
+   - Challenge: Long URLs breaking card layout, text overflowing containers
+   - Complexity: CSS responsive design with Tailwind
+   - Solution: Used `break-words`, `break-all`, responsive padding, max-width constraints
+   - Learning: Modern CSS techniques for text wrapping and responsive design
+
+### 6. **Performance: Avoiding Memory Leaks**
+   - Challenge: Subscriptions and intervals must be cleaned up properly
+   - Complexity: Understanding React useEffect cleanup and component lifecycle
+   - Solution: Implemented `isMounted` flag, proper cleanup in useEffect return
+   - Learning: Memory management in React, preventing state updates after unmount
+
+### 7. **Git & Deployment Pipeline**
+   - Challenge: Pushing code to GitHub and automatic deployment on Vercel
+   - Complexity: Understanding git workflows, webhook triggers, CI/CD
+   - Solution: Used `git add`, `git commit`, `git push`, configured GitHub + Vercel
+   - Learning: Modern deployment workflows and automation
+
+### 8. **Styling for Professional UX**
+   - Challenge: Converting basic login form to realistic, professional card design
+   - Complexity: Tailwind CSS flexbox, shadows, gradients, hover states
+   - Solution: Designed Google OAuth card with gradient background, proper spacing
+   - Learning: Modern web design principles and Tailwind best practices
+
+---
+
+## Key Learnings from This Assignment
+
+✅ Full-stack authentication (Supabase OAuth)  
+✅ Real-time database updates and subscriptions  
+✅ Row-level security and data privacy  
+✅ Responsive UI design with Tailwind CSS  
+✅ Modern deployment pipeline (GitHub → Vercel)  
+✅ Debugging environment and build issues  
+✅ React hooks best practices (useEffect cleanup)  
+✅ Third-party service integration  
+
+---
+
 ## Problems encountered & how I solved them
 
 1. Environment variables not loaded
